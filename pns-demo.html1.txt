@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>دموی نرم‌افزار P&S - تصمیم‌گیری هوشمند</title>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/babel-standalone@6.26.0/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4 font-sans">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    const App = () => {
+      const [criteria, setCriteria] = useState([]); // معیارها
+      const [options, setOptions] = useState([]); // گزینه‌ها
+      const [newCriterion, setNewCriterion] = useState("");
+      const [newOption, setNewOption] = useState("");
+      const [relations, setRelations] = useState({}); // روابط (اثرات مثبت/منفی)
+      const [results, setResults] = useState(null); // نتایج محاسبه
+      const chartRef = useRef(null);
+
+      const addCriterion = () => {
+        if (newCriterion.trim() === "") return;
+        setCriteria([...criteria, { id: Date.now(), name: newCriterion, impact: 0 }]);
+        setNewCriterion("");
+      };
+
+      const addOption = () => {
+        if (newOption.trim() === "") return;
+        setOptions([...options, { id: Date.now(), name: newOption }]);
+        setNewOption("");
+      };
+
+      const updateRelation = (from, to, value) => {
+        setRelations(prev => ({
+          ...prev,
+          [`${from}-${to}`]: value
+        }));
+      };
+
+      const calculateResults = () => {
+        // شبیه‌سازی ساده محاسبه MCDM (اولویت‌بندی بر اساس روابط)
+        const priorities = criteria.map(c => {
+          let score = 0;
+          criteria.forEach(other => {
+            const rel = relations[`${c.id}-${other.id}`] || 0;
+            score += rel; // اثرات مثبت/منفی
+          });
+          return { ...c, priority: Math.max(0, score + Math.random() * 10) }; // شبیه‌سازی
+        }).sort((a, b) => b.priority - a.priority);
+
+        const vitalFactors = priorities.slice(0, 2); // عوامل حیاتی (2 تا برتر)
+
+        setResults({ priorities, vitalFactors });
+      };
+
+      useEffect(() => {
+        if (results && chartRef.current) {
+          const ctx = chartRef.current.getContext('2d');
+          new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: results.priorities.map(p => p.name),
+              datasets: [{ label: 'اولویت', data: results.priorities.map(p => p.priority), backgroundColor: 'rgba(59, 130, 246, 0.5)' }]
+            },
+            options: { scales: { y: { beginAtZero: true } } }
+          });
+        }
+      }, [results]);
+
+      return (
+        <div className="w-full max-w-4xl bg-white rounded-lg shadow-lg p-6">
+          <h1 className="text-3xl font-bold text-center text-blue-800 mb-6">دموی نرم‌افزار P&S: تصمیم‌گیری هوشمند برای حکمرانی و سازمان‌ها</h1>
+          <p className="text-center text-gray-600 mb-4">این دمو شبیه‌سازی ساده‌ای از P&S است – وارد کردن معیارها، روابط، و محاسبه اولویت‌ها بر اساس اثرات شبکه‌ای. مثال: اولویت‌بندی منابع انرژی (از فایل رویداد).</p>
+
+          <div className="grid grid-cols-2 gap-6 mb-6">
+            {/* بخش معیارها */}
+            <div>
+              <h2 className="text-xl font-semibold mb-2">افزودن معیارهای تصمیم (فاکتورها)</h2>
+              <div className="flex mb-2">
+                <input type="text" value={newCriterion} onChange={e => setNewCriterion(e.target.value)} className="flex-1 p-2 border rounded-r-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="معیار جدید (مثل هزینه، پایداری)" />
+                <button onClick={addCriterion} className="bg-blue-500 text-white px-4 py-2 rounded-l-lg hover:bg-blue-600">افزودن</button>
+              </div>
+              <ul className="space-y-2">
+                {criteria.map(c => <li key={c.id} className="p-2 bg-gray-50 rounded-lg">{c.name}</li>)}
+              </ul>
+            </div>
+
+            {/* بخش گزینه‌ها */}
+            <div>
+              <h2 className="text-xl font-semibold mb-2">افزودن گزینه‌های تصمیم</h2>
+              <div className="flex mb-2">
+                <input type="text" value={newOption} onChange={e => setNewOption(e.target.value)} className="flex-1 p-2 border rounded-r-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="گزینه جدید (مثل انرژی خورشیدی، باد)" />
+                <button onClick={addOption} className="bg-blue-500 text-white px-4 py-2 rounded-l-lg hover:bg-blue-600">افزودن</button>
+              </div>
+              <ul className="space-y-2">
+                {options.map(o => <li key={o.id} className="p-2 bg-gray-50 rounded-lg">{o.name}</li>)}
+              </ul>
+            </div>
+          </div>
+
+          {/* بخش روابط */}
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold mb-2">تعریف روابط (اثرات مثبت/منفی بین معیارها)</h2>
+            <div className="grid grid-cols-3 gap-4">
+              {criteria.map(from => (
+                criteria.map(to => from.id !== to.id && (
+                  <div key={`${from.id}-${to.id}`} className="flex items-center space-x-2">
+                    <span>{from.name} → {to.name}:</span>
+                    <select onChange={e => updateRelation(from.id, to.id, parseInt(e.target.value))} className="p-1 border rounded">
+                      <option value="0">خنثی</option>
+                      <option value="5">مثبت</option>
+                      <option value="-5">منفی</option>
+                    </select>
+                  </div>
+                ))
+              ))}
+            </div>
+          </div>
+
+          <button onClick={calculateResults} className="w-full bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 mb-6">محاسبه نتایج (اولویت‌بندی و عوامل حیاتی)</button>
+
+          {results && (
+            <div>
+              <h2 className="text-xl font-semibold mb-2">نتایج: اولویت‌بندی معیارها</h2>
+              <canvas ref={chartRef} className="mb-4"></canvas>
+              <h3 className="text-lg font-semibold mb-2">عوامل حیاتی شناسایی‌شده:</h3>
+              <ul className="space-y-2">
+                {results.vitalFactors.map(f => <li key={f.id} className="p-2 bg-green-100 rounded-lg">{f.name} (اولویت: {f.priority.toFixed(2)})</li>)}
+              </ul>
+              <p className="mt-4 text-gray-600">این نتایج بر اساس اثرات شبکه‌ای محاسبه شدن. در نسخه کامل P&S، لوپ‌ها و داده‌های واقعی ادغام می‌شن برای تصمیم‌گیری دقیق‌تر (مثل مدیریت بحران یا شفافیت).</p>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
